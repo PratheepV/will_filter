@@ -43,7 +43,7 @@
 module WillFilter
   class Filter < ActiveRecord::Base
     self.table_name = :will_filter_filters 
-    attr_accessible :type, :name, :data, :user_id, :model_class_name
+    # attr_accessible :type, :name, :data, :user_id, :model_class_name
 
     # set_table_name  :will_filter_filters
     serialize       :data
