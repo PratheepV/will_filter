@@ -54,9 +54,9 @@ module WillFilter
     self.table_name = :will_filter_filters
 
     # set_table_name  :will_filter_filters
-    serialize       :data
-    before_save     :prepare_save
-    after_find      :process_find
+    serialize         :data
+    before_validation :prepare_save
+    after_find        :process_find
 
     JOIN_NAME_INDICATOR = '>'
 
@@ -83,7 +83,7 @@ module WillFilter
     end
 
     def process_find
-      @errors = {}
+      @errors = ActiveModel::Errors.new(self)
       deserialize_from_params(self.data)
     end
 
@@ -107,7 +107,7 @@ module WillFilter
     end
 
     def errors
-      @errors ||= {}
+      @errors ||= ActiveModel::Errors.new(self)
     end
 
     def format
