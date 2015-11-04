@@ -1,14 +1,5 @@
 #--
-# Copyright (c) 2010-2016 Michael Berkovich, theiceberk@gmail.com
-#
-#  __    __  ____  _      _          _____  ____  _     ______    ___  ____
-# |  |__|  ||    || |    | |        |     ||    || |   |      |  /  _]|    \
-# |  |  |  | |  | | |    | |        |   __| |  | | |   |      | /  [_ |  D  )
-# |  |  |  | |  | | |___ | |___     |  |_   |  | | |___|_|  |_||    _]|    /
-# |  `  '  | |  | |     ||     |    |   _]  |  | |     | |  |  |   [_ |    \
-#  \      /  |  | |     ||     |    |  |    |  | |     | |  |  |     ||  .  \
-#   \_/\_/  |____||_____||_____|    |__|   |____||_____| |__|  |_____||__|\_|
-#
+# Copyright (c) 2010-2013 Michael Berkovich
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -52,6 +43,7 @@
 module WillFilter
   class Filter < ActiveRecord::Base
     self.table_name = :will_filter_filters
+    # attr_accessible :type, :name, :data, :user_id, :model_class_name
 
     # set_table_name  :will_filter_filters
     serialize         :data
@@ -66,8 +58,8 @@ module WillFilter
     def initialize(model_class = nil)
       super()
 
-      if WillFilter::Config.require_filter_extensions? and self.class.name == 'WillFilter::Filter'
-        raise WillFilter::FilterException.new('Your configuration requires you to subclass the filter. Default filter cannot be created.')
+      if WillFilter::Config.require_filter_extensions? and self.class.name == "WillFilter::Filter"
+        raise WillFilter::FilterException.new("Your configuration requires you to subclass the filter. Default filter cannot be created.")
       end
 
       self.model_class_name = model_class.to_s
@@ -164,24 +156,22 @@ module WillFilter
     end
 
     def model_columns
-      @model_columns ||= model_class.columns
+      model_class.columns
     end
 
     def model_column_keys
-      @model_column_keys ||= model_columns.collect{|col| col.name.to_sym}
+      model_columns.collect{|col| col.name.to_sym}
     end
 
     def contains_column?(key)
-      model_column_keys.index(key.to_sym) != nil
+      model_column_keys.index(key) != nil
     end
 
     def definition
       @definition ||= begin
         defs = {}
         model_columns.each do |col|
-          key = col.name.to_sym
-          next unless contains_column?(key)
-          defs[key] = default_condition_definition_for(col.name, col.sql_type)
+          defs[col.name.to_sym] = default_condition_definition_for(col.name, col.sql_type)
         end
         inner_joins.each do |inner_join|
           join_class = association_class(inner_join)
@@ -191,16 +181,6 @@ module WillFilter
         end
 
         defs
-      end
-    end
-
-    def sql_attribute_for_key(key)
-      if key.to_s.index('.')
-        parts = key.to_s.split('.')
-        join_class = parts.first.camelcase.constantize
-        "#{join_class.table_name}.#{parts.last}"
-      else
-        "#{table_name}.#{key}"
       end
     end
 
@@ -238,10 +218,6 @@ module WillFilter
       operators
     end
 
-    def model_class_for_column_key(key)
-      nil
-    end
-
     def sorted_operators(opers)
       (WillFilter::Config.operator_order & opers.keys.collect{|o| o.to_s})
     end
@@ -268,6 +244,10 @@ module WillFilter
       @order_type ||= default_order_type
       @order_type = default_order_type unless ['asc', 'desc'].include?(@order_type.to_s)
       @order_type
+    end
+
+    def order_clause
+      "#{order} #{order_type}"
     end
 
     def order_model
@@ -297,7 +277,7 @@ module WillFilter
     end
 
     def default_per_page
-      100
+      30
     end
 
     def per_page
@@ -309,11 +289,7 @@ module WillFilter
     end
 
     def default_per_page_options
-      [10, 20, 30, 40, 50, 100, 500, 1000]
-    end
-
-    def per_page_configurable?
-      true
+      [10, 20, 30, 40, 50, 100]
     end
 
     def per_page_options
@@ -322,10 +298,6 @@ module WillFilter
 
     def match_options
       [["all", "all"], ["any", "any"]]
-    end
-
-    def order_configurable?
-      true
     end
 
     def order_type_options
@@ -603,10 +575,6 @@ module WillFilter
         self.user_id = WillFilter::Config.current_user.id
       end
 
-      if WillFilter::Config.project_filters_enabled? and WillFilter::Config.current_project
-        self.project_id = WillFilter::Config.current_project.id
-      end
-
       self
     end
     alias_method :from_params, :deserialize_from_params
@@ -615,7 +583,7 @@ module WillFilter
     # Validations
     #############################################################################
     def errors?
-      (@errors and @errors.size > 0)
+     (@errors and @errors.size > 0)
     end
 
     def empty?
@@ -655,30 +623,25 @@ module WillFilter
     #############################################################################
     # SQL Conditions
     #############################################################################
-
-    def to_sql_condition(condition)
-      condition.container.sql_condition
-    end
-
     def sql_conditions
       @sql_conditions ||= begin
         if errors?
-          [' 1 = 2 ']
+          [" 1 = 2 "]
         else
-          all_sql_conditions = ['']
+          all_sql_conditions = [""]
           0.upto(size - 1) do |index|
             condition = condition_at(index)
             next if custom_condition?(condition)
             next unless condition.container
 
-            sql_condition = to_sql_condition(condition)
+            sql_condition = condition.container.sql_condition
 
             unless sql_condition
               raise WillFilter::FilterException.new("Unsupported operator #{condition.operator_key} for container #{condition.container.class.name}")
             end
 
             if all_sql_conditions[0].size > 0
-              all_sql_conditions[0] << ( match.to_sym == :all ? ' AND ' : ' OR ')
+              all_sql_conditions[0] << ( match.to_sym == :all ? " AND " : " OR ")
             end
 
             all_sql_conditions[0] << sql_condition[0]
@@ -731,46 +694,41 @@ module WillFilter
     #############################################################################
     def user_filters
       @user_filters ||= begin
-        conditions = ['model_class_name = ?', self.model_class_name]
+        conditions = ["model_class_name = ?", self.model_class_name]
 
         if WillFilter::Config.user_filters_enabled?
-          conditions[0] << ' and user_id = ? '
+          conditions[0] << " and user_id = ? "
           if WillFilter::Config.current_user and WillFilter::Config.current_user.id
             conditions << WillFilter::Config.current_user.id
           else
-            conditions << '0'
+            conditions << "0"
           end
         end
 
-        if WillFilter::Config.project_filters_enabled?
-          conditions[0] << ' and project_id = ? '
-          if WillFilter::Config.current_project and WillFilter::Config.current_project.id
-            conditions << WillFilter::Config.current_project.id
-          else
-            conditions << '0'
-          end
-        end
-
-        WillFilter::Filter.where(conditions)
+        WillFilter::Filter.find(:all, :conditions => conditions)
       end
-    end
-
-    def filter_options
-      filters = [['', [['', '']]]]
-
-      if default_filters.any?
-        filters << ['Pre-defined Filters', default_filters]
-      end
-
-      if saved_filters.any?
-        filters << ['Saved Filters', saved_filters]
-      end
-
-      filters
     end
 
     def saved_filters(include_default = true)
-      @saved_filters ||= user_filters.collect{|f| [f.name, f.id.to_s]}
+      @saved_filters ||= begin
+        filters = []
+
+        if include_default
+          filters = default_filters
+          if (filters.size > 0)
+            filters.insert(0, ["-- Select Default Filter --", "-1"])
+          end
+        end
+
+        if user_filters.any?
+          filters << ["-- Select Saved Filter --", "-2"] if include_default
+          user_filters.each do |filter|
+            filters << [filter.name, filter.id.to_s]
+          end
+        end
+
+        filters
+      end
     end
 
     #############################################################################
