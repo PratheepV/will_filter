@@ -33,9 +33,9 @@
 module WillFilter
   module ActionControllerExtension
     def self.included(base)
-      base.send(:include, InstanceMethods) 
-      base.before_filter :init_will_filter
-      base.after_filter :reset_will_filter
+      base.send(:include, InstanceMethods)
+      base.before_action :init_will_filter
+      base.after_action :reset_will_filter
     end
 
     module InstanceMethods
